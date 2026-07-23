@@ -70,11 +70,32 @@ npm run build   # builds client (client/dist) and server (server/dist)
 npm start        # serves the API + built client from one process on $PORT (default 8787)
 ```
 
+### Deploying to Vercel
+
+The repo includes `vercel.json` plus `api/index.ts`, a serverless entrypoint that exports the
+same Express app (`server/src/app.ts`) used locally — no separate backend to host.
+
+1. Import the repo into Vercel (New Project → this repo). It auto-detects `vercel.json`:
+   builds the client with `npm run build --workspace client`, serves `client/dist` as static
+   output, and deploys `api/index.ts` as a serverless function for all `/api/*` requests.
+2. In the Vercel project's **Settings → Environment Variables**, add `FMP_API_KEY` (never commit
+   it — `server/.env` is gitignored for exactly this reason). Without it, deployed instances fall
+   back to the bundled demo tickers, same as local dev.
+3. Deploy. No other configuration needed.
+
+Note: this Vercel config was written and typechecked in this session but not deployed/tested end
+to end (no live Vercel access here) — if `/api/*` 404s or the function fails to resolve
+workspace dependencies on first deploy, check Vercel's build logs first; the usual fix is
+confirming the install step ran at the repo root (so npm workspace hoisting puts `express`,
+`cors`, etc. where the function can resolve them).
+
 ## Project layout
 
 ```
 server/   Express + TypeScript API
   src/types.ts              shared data contracts (RawFinancials in, Scorecard out)
+  src/app.ts                 creates the Express app (routes only, no listen/static)
+  src/index.ts               local/standalone entrypoint: app.listen + serves client/dist
   src/scoring/               gates.ts, shariah.ts, categories.ts, verdict.ts, index.ts
   src/providers/fmp.ts       live Financial Modeling Prep client
   src/data/fixtures/         bundled demo data
@@ -85,6 +106,9 @@ client/   Vite + React + TypeScript UI ("Ledger" theme)
   src/components/            RadialGauge, GateCard, CategoryBar, StatChip, CalloutBox,
                               SellTargetBox, PeerTable, VerdictBadge, Scorecard
   src/i18n/                  en/ar dictionaries + fixed-vocabulary label translations
+
+api/index.ts   Vercel serverless entrypoint — exports server/src/app.ts directly
+vercel.json     build/output/rewrite config for deploying client + api together
 ```
 
 ## Disclaimer
